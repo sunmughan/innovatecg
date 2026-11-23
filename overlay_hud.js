@@ -1,5 +1,5 @@
 (() => {
-    if (document.getElementById('agy-hub-btn')) return;
+    if (document.getElementById('agy-floating-toolbar')) return;
 
     window.__AGY_PAUSED = false;
     window.__AGY_CONFIG_UPDATE = false;
@@ -15,26 +15,35 @@
         };
     }
 
-    // 1. Floating Trigger Button (Top Right)
-    const hubBtn = document.createElement('button');
-    hubBtn.id = 'agy-hub-btn';
-    hubBtn.innerHTML = '⚙️ <b>Control Center (Tabs & Mode)</b>';
-    hubBtn.style.cssText = 'position:fixed;top:14px;right:16px;z-index:2147483647;background:linear-gradient(135deg, #C15B3D, #D39B2C);color:white;padding:10px 18px;border:2px solid #fff;border-radius:24px;font-family:sans-serif;font-size:13px;font-weight:bold;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,0.35);transition:all 0.2s;';
-    
-    hubBtn.onmouseover = () => hubBtn.style.transform = 'scale(1.05)';
-    hubBtn.onmouseout = () => hubBtn.style.transform = 'scale(1)';
+    // 1. Floating Unified Toolbar (No overlapping, flexbox layout)
+    const toolbar = document.createElement('div');
+    toolbar.id = 'agy-floating-toolbar';
+    toolbar.style.cssText = 'position:fixed;top:12px;right:16px;z-index:2147483647;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);padding:5px 8px;border-radius:28px;box-shadow:0 6px 20px rgba(0,0,0,0.28);border:1.5px solid #fed7aa;font-family:sans-serif;';
 
-    // Also a quick Skip Record button beside it
+    // A. Skip Record Button
     const skipBtn = document.createElement('button');
     skipBtn.id = 'agy-skip-btn';
     skipBtn.innerText = '⏭️ Skip Record';
-    skipBtn.style.cssText = 'position:fixed;top:14px;right:250px;z-index:2147483647;background:#dc2626;color:white;padding:10px 16px;border:2px solid #fff;border-radius:24px;font-family:sans-serif;font-size:12px;font-weight:bold;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,0.35);';
+    skipBtn.style.cssText = 'background:#dc2626;color:white;padding:7px 14px;border:none;border-radius:20px;font-family:sans-serif;font-size:12px;font-weight:bold;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);transition:all 0.15s;white-space:nowrap;';
+    skipBtn.onmouseover = () => skipBtn.style.transform = 'scale(1.04)';
+    skipBtn.onmouseout = () => skipBtn.style.transform = 'scale(1)';
     skipBtn.onclick = (e) => {
         e.preventDefault();
         window.__AGY_SKIP_REQUESTED = true;
         skipBtn.innerText = '⏳ Skipping...';
         skipBtn.style.background = '#6b7280';
     };
+
+    // B. Control Center Button
+    const hubBtn = document.createElement('button');
+    hubBtn.id = 'agy-hub-btn';
+    hubBtn.innerHTML = '⚙️ <b>Control Center</b>';
+    hubBtn.style.cssText = 'background:linear-gradient(135deg, #C15B3D, #D39B2C);color:white;padding:7px 16px;border:none;border-radius:20px;font-family:sans-serif;font-size:12px;font-weight:bold;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);transition:all 0.15s;white-space:nowrap;';
+    hubBtn.onmouseover = () => hubBtn.style.transform = 'scale(1.04)';
+    hubBtn.onmouseout = () => hubBtn.style.transform = 'scale(1)';
+
+    toolbar.appendChild(skipBtn);
+    toolbar.appendChild(hubBtn);
 
     // 2. Modal Overlay Container
     const modal = document.createElement('div');
@@ -103,8 +112,7 @@
     </div>
     `;
 
-    document.body.appendChild(hubBtn);
-    document.body.appendChild(skipBtn);
+    document.body.appendChild(toolbar);
     document.body.appendChild(modal);
 
     // Update Radio UI borders on change

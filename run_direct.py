@@ -178,8 +178,14 @@ async def inject_hud(page):
     """Injects the interactive Control Center HUD into the page."""
     try:
         await page.evaluate(f"window.__AGY_CATALOG = {json.dumps(CATALOG)};")
-        if HUD_SCRIPT:
-            await page.evaluate(HUD_SCRIPT)
+        hud_code = ""
+        if os.path.exists(HUD_SCRIPT_FILE):
+            with open(HUD_SCRIPT_FILE, "r", encoding="utf-8") as f:
+                hud_code = f.read()
+        else:
+            hud_code = HUD_SCRIPT
+        if hud_code:
+            await page.evaluate(hud_code)
     except Exception:
         pass
 
