@@ -1,0 +1,30 @@
+# Virtual environment
+venv/
+env/
+ENV/
+.env
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Playwright artifacts & browser logs
+test-results/
+playwright-report/
+
+# Debug screenshots & temporary run artifacts
+*.png
+*.log
+
+# Sensitive contact CSVs (contains real personal phone numbers)
+mobile.csv
+indian_mobile_contacts_renamed.csv
+phones.csv
+cleaned_*.csv
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini

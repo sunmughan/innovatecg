@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Website Flow Recorder & Batch Data Entry</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+      --bg: #0b0f19;
+      --card-bg: #151e2e;
+      --card-border: #26354a;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --input-bg: #0b0f19;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .container {
+      max-width: 1150px;
+      margin: 0 auto;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .top-bar h1 {
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .badge-step {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      padding: 3px 9px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-right: 8px;
+    }
+
+    .form-group { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--primary); }
+
+    .btn-record-start {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+    .btn-record-start:hover { opacity: 0.9; }
+
+    .btn-record-stop {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-preset {
+      background: var(--purple);
+      color: white;
+      border: none;
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+    .btn-preset:hover { opacity: 0.9; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--card-border);
+      background: rgba(11, 15, 25, 0.7);
+    }
+    .status-badge .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #64748b;
+    }
+    .status-badge.active {
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .status-badge.active .dot {
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+    }
+
+    .flow-steps-container {
+      background: #060911;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 14px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .flow-step-item {
+      background: #151e2e;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .step-desc {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .step-num {
+      background: #1e293b;
+      border: 1px solid #334155;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .step-selector {
+      font-family: monospace;
+      font-size: 11.5px;
+      color: #94a3b8;
+      background: #0b0f19;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    .dropzone {
+      border: 2px dashed #475569;
+      border-radius: 10px;
+      padding: 26px 14px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(11, 15, 25, 0.5);
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .dropzone:hover { border-color: var(--primary); }
+    .dropzone input[type="file"] {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .btn-replay-start {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 13px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s;
+      margin-top: 14px;
+    }
+    .btn-replay-start:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-replay-start:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-replay-stop {
+      width: 100%;
+      background: var(--danger);
+      color: white;
+      border: none;
+      padding: 13px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .metric-card {
+      background: rgba(11, 15, 25, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .metric-val { font-size: 20px; font-weight: 700; margin-top: 4px; }
+    .metric-val.total { color: #fff; }
+    .metric-val.success { color: var(--success); }
+    .metric-val.failed { color: var(--danger); }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 7px;
+      background: #334155;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3b82f6, #10b981);
+      transition: width 0.3s;
+    }
+
+    .console {
+      background: #060911;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      height: 220px;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .log-line { margin-bottom: 4px; }
+    .log-info { color: #94a3b8; }
+    .log-success { color: #34d399; }
+    .log-warn { color: #fbbf24; }
+    .log-error { color: #f87171; }
+    .log-bold { font-weight: 600; color: #60a5fa; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <div>
+        <h1>
+          <span>&#9881;</span> InnovateCG Voting Automation & Flow Recorder
+        </h1>
+      </div>
+      <div>
+        <button onclick="exportResults()" id="btn-export" style="display:none; background:transparent; border:1px solid #334155; color:#94a3b8; padding:6px 12px; border-radius:6px; cursor:pointer;">&#128229; Download Results CSV</button>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: CAPTURE FLOW                                           -->
+    <!-- ============================================================== -->
+    <div class="card">
+      <div class="card-title">
+        <span><span class="badge-step">Step 1</span> Submission Sequence (Flow)</span>
+        <div class="status-badge" id="record-badge">
+          <span class="dot"></span>
+          <span id="record-badge-text">Not Capturing</span>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+        <input type="text" id="target-url" value="https://innovatecg.in/voting" placeholder="Enter target website URL" style="flex:1; min-width:280px;" />
+
+        <button type="button" class="btn-preset" onclick="loadInnovatePreset()">
+          <span>⚡</span> 1-Click Load Voting Flow
+        </button>
+
+        <button id="btn-rec-start" class="btn-record-start" onclick="startFlowCapture()">
+          <span>&#9679;</span> Start Capture Flow
+        </button>
+        <button id="btn-rec-stop" class="btn-record-stop" onclick="stopFlowCapture()">
+          <span>&#9632;</span> Stop Capture Flow
+        </button>
+      </div>
+
+      <div style="font-size:12.5px; color:var(--text-muted); line-height:1.5;">
+        <strong>Quick Option:</strong> Click <strong>⚡ 1-Click Load Voting Flow</strong> to immediately load the pre-configured steps (Vote Now &rarr; Name &rarr; Phone &rarr; Email &rarr; Confirm & Cast Vote), OR click <strong>Start Capture Flow</strong> to record custom clicks on your candidate card!
+      </div>
+
+      <!-- Recorded Steps List -->
+      <div class="flow-steps-container" id="steps-container">
+        <div style="text-align:center; color:var(--text-muted); font-size:12.5px; padding:20px;">
+          No steps loaded yet. Click <strong>⚡ 1-Click Load Voting Flow</strong> or <strong>Start Capture Flow</strong>.
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ============================================================== -->
+    <!-- STEP 2: UPLOAD CSV & RUN REPLAY                                 -->
+    <!-- ============================================================== -->
+    <div class="grid">
+      <!-- Upload Card -->
+      <div class="card">
+        <div class="card-title">
+          <span><span class="badge-step">Step 2</span> Upload Your CSV Data File</span>
+          <span id="file-status" style="font-size:12px; font-weight:normal; color:var(--text-muted);">No file loaded</span>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="csv-input" accept=".csv" />
+          <div style="font-size:26px; color:#60a5fa; margin-bottom:6px;">&#128196;</div>
+          <div style="font-size:13px; color:var(--text-muted);">
+            <strong>Click to select</strong> or drag & drop <code>identities-from-contacts.csv</code>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; font-size:12px; color:var(--text-muted);">
+          Total contacts loaded: <strong id="csv-count-badge" style="color:#fff;">0</strong>
+        </div>
+      </div>
+
+      <!-- Replay Controls -->
+      <div class="card">
+        <div class="card-title">
+          <span><span class="badge-step">Step 3</span> Run Batch Submissions</span>
+        </div>
+
+        <div class="form-group">
+          <label>Delay Between Submissions (Seconds)</label>
+          <input type="number" id="replay-delay" value="2.0" step="0.5" min="0.5" max="10" />
+        </div>
+
+        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px; line-height:1.4;">
+          The bot opens the browser, opens the voting modal, and automatically fills in <strong>Name</strong>, <strong>Phone</strong>, and <strong>Email</strong> from your CSV. 
+          When the code box appears, you solve the captcha, and the bot proceeds to the next contact!
+        </div>
+
+        <button id="btn-replay-start" class="btn-replay-start" onclick="startBatchReplay()" disabled>
+          <span>&#9658;</span> Run Automation for All Contacts
+        </button>
+        <button id="btn-replay-stop" class="btn-replay-stop" onclick="stopBatchReplay()">
+          <span>&#9632;</span> Stop Automation
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: LIVE LOGS & EXECUTION MONITOR                          -->
+    <!-- ============================================================== -->
+    <div class="card">
+      <div class="card-title">
+        <span>Execution Monitor & Live Progress</span>
+        <span id="replay-status" style="font-size:13px; font-weight:600; color:var(--text-muted);">Ready</span>
+      </div>
+
+      <div class="metrics-bar">
+        <div class="metric-card">
+          <div style="font-size:11px; color:var(--text-muted);">TOTAL CONTACTS</div>
+          <div class="metric-val total" id="m-total">0</div>
+        </div>
+        <div class="metric-card">
+          <div style="font-size:11px; color:var(--text-muted);">PROCESSED</div>
+          <div class="metric-val" id="m-processed" style="color:#60a5fa;">0</div>
+        </div>
+        <div class="metric-card">
+          <div style="font-size:11px; color:var(--text-muted);">SUCCESS</div>
+          <div class="metric-val success" id="m-success">0</div>
+        </div>
+        <div class="metric-card">
+          <div style="font-size:11px; color:var(--text-muted);">FAILED</div>
+          <div class="metric-val failed" id="m-failed">0</div>
+        </div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-fill" id="progress-bar"></div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:11px; color:var(--text-muted); font-weight:600;">LIVE LOG CONSOLE</span>
+        <button onclick="clearConsole()" style="background:none; border:none; color:var(--text-muted); font-size:11px; cursor:pointer;">Clear</button>
+      </div>
+      <div class="console" id="console">
+        <div class="log-line log-info">[System] Ready. Click '⚡ 1-Click Load Voting Flow' or upload your CSV.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rawCsvData = [];
+    let csvHeaders = [];
+    let recordedSteps = [];
+    let isRecording = false;
+    let isReplaying = false;
+    let pollInterval = null;
+    let executionResults = [];
+
+    // Preload InnovateCG flow
+    async function loadInnovatePreset() {
+      try {
+        const res = await fetch('/api/flow/preset-innovatecg', { method: 'POST' });
+        const data = await res.json();
+        renderStepsList(data.steps);
+        logMessage('[Flow] Loaded 5-step InnovateCG voting flow successfully!', 'success');
+      } catch (err) {
+        alert('Failed to load preset: ' + err.message);
+      }
+    }
+
+    // ==========================================
+    // 1. FLOW CAPTURE
+    // ==========================================
+    async function startFlowCapture() {
+      const url = document.getElementById('target-url').value.trim();
+      if (!url) { alert('Please enter your website URL.'); return; }
+
+      try {
+        const res = await fetch('/api/flow/start-capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_url: url })
+        });
+        const data = await res.json();
+        if (data.status === 'recording_started') {
+          setRecordingUIState(true);
+          startPolling();
+          logMessage('[Capture] Chromium browser opened to ' + url + '. Do your clicks and inputs INSIDE THAT BROWSER WINDOW!', 'bold');
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (err) {
+        alert('Failed to start capture: ' + err.message);
+      }
+    }
+
+    async function stopFlowCapture() {
+      try {
+        await fetch('/api/flow/stop-capture', { method: 'POST' });
+        setRecordingUIState(false);
+        logMessage('[Capture] Stopped. Review your recorded steps above.', 'success');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function setRecordingUIState(active) {
+      isRecording = active;
+      const badge = document.getElementById('record-badge');
+      const text = document.getElementById('record-badge-text');
+      const btnStart = document.getElementById('btn-rec-start');
+      const btnStop = document.getElementById('btn-rec-stop');
+
+      if (active) {
+        badge.className = 'status-badge active';
+        text.innerText = '🔴 Capturing in Progress (Browser Open)';
+        btnStart.style.display = 'none';
+        btnStop.style.display = 'flex';
+      } else {
+        badge.className = 'status-badge';
+        text.innerText = 'Not Capturing';
+        btnStart.style.display = 'flex';
+        btnStop.style.display = 'none';
+      }
+      checkReadyToReplay();
+    }
+
+    function renderStepsList(steps) {
+      recordedSteps = steps || [];
+      const box = document.getElementById('steps-container');
+      if (!steps || steps.length === 0) {
+        box.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:12.5px; padding:20px;">No steps loaded yet. Click <strong>⚡ 1-Click Load Voting Flow</strong> or <strong>Start Capture Flow</strong>.</div>';
+        return;
+      }
+
+      box.innerHTML = steps.map((s, idx) => {
+        let fieldSelect = '';
+        if (s.action === 'fill') {
+          fieldSelect = `
+            <select onchange="updateStepField(${idx}, this.value)" style="width:140px; padding:4px 8px; font-size:12px;">
+              <option value="name" ${s.field === 'name' ? 'selected' : ''}>Map to: Name</option>
+              <option value="phone" ${s.field === 'phone' ? 'selected' : ''}>Map to: Phone</option>
+              <option value="email" ${s.field === 'email' ? 'selected' : ''}>Map to: Email</option>
+              <option value="captcha" ${s.field === 'captcha' ? 'selected' : ''}>Captcha Code</option>
+              <option value="fixed" ${s.field === 'fixed' ? 'selected' : ''}>Fixed Value</option>
+            </select>
+          `;
+        }
+
+        return `
+          <div class="flow-step-item">
+            <div class="step-desc">
+              <span class="step-num">${idx + 1}</span>
+              <div>
+                <strong>${escapeHtml(s.description || s.action)}</strong>
+                <span class="step-selector">${escapeHtml(s.selector)}</span>
+              </div>
+            </div>
+            <div>${fieldSelect}</div>
+          </div>
+        `;
+      }).join('');
+
+      checkReadyToReplay();
+    }
+
+    async function updateStepField(stepIdx, newField) {
+      if (recordedSteps[stepIdx]) {
+        recordedSteps[stepIdx].field = newField;
+        await fetch('/api/flow/update-steps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ steps: recordedSteps })
+        });
+      }
+    }
+
+
+    // ==========================================
+    // 2. CSV UPLOAD
+    // ==========================================
+    const csvInput = document.getElementById('csv-input');
+    const dropzone = document.getElementById('dropzone');
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.style.borderColor = '#3b82f6'; });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.style.borderColor = '#475569'; });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length) handleFile(files[0]);
+    });
+    csvInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file.name.endsWith('.csv')) {
+        alert('Please upload a .csv file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => parseCsvText(e.target.result, file.name);
+      reader.readAsText(file);
+    }
+
+    function parseCsvText(text, filename) {
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (lines.length < 2) {
+        alert('CSV must contain a header row and at least one data row.');
+        return;
+      }
+
+      function parseLine(line) {
+        const result = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"' || char === "'") inQuotes = !inQuotes;
+          else if (char === ',' && !inQuotes) { result.push(cur.trim()); cur = ''; }
+          else cur += char;
+        }
+        result.push(cur.trim());
+        return result;
+      }
+
+      csvHeaders = parseLine(lines[0]);
+      rawCsvData = [];
+
+      let nameIdx = -1, emailIdx = -1, phoneIdx = -1;
+      csvHeaders.forEach((h, idx) => {
+        const lower = h.toLowerCase();
+        if (nameIdx === -1 && lower.includes('name')) nameIdx = idx;
+        if (emailIdx === -1 && lower.includes('mail')) emailIdx = idx;
+        if (phoneIdx === -1 && (lower.includes('phone') || lower.includes('mobile') || lower.includes('tel'))) phoneIdx = idx;
+      });
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseLine(lines[i]);
+        if (values.length > 0 && values.some(v => v !== '')) {
+          rawCsvData.push({
+            name: nameIdx !== -1 ? (values[nameIdx] || '') : (values[0] || ''),
+            email: emailIdx !== -1 ? (values[emailIdx] || '') : (values[1] || ''),
+            phone: phoneIdx !== -1 ? (values[phoneIdx] || '') : (values[2] || '')
+          });
+        }
+      }
+
+      document.getElementById('file-status').innerText = `${filename} (${rawCsvData.length} records)`;
+      document.getElementById('csv-count-badge').innerText = rawCsvData.length;
+      document.getElementById('m-total').innerText = rawCsvData.length;
+      logMessage(`[Data] Loaded "${filename}" with ${rawCsvData.length} contacts.`, 'success');
+      checkReadyToReplay();
+    }
+
+    function checkReadyToReplay() {
+      const btn = document.getElementById('btn-replay-start');
+      btn.disabled = !(rawCsvData.length > 0 && recordedSteps.length > 0 && !isRecording && !isReplaying);
+    }
+
+
+    // ==========================================
+    // 3. BATCH REPLAY EXECUTION
+    // ==========================================
+    async function startBatchReplay() {
+      const url = document.getElementById('target-url').value.trim();
+      const delay = parseFloat(document.getElementById('replay-delay').value) || 2.0;
+
+      if (!url) { alert('Please enter target website URL.'); return; }
+      if (!recordedSteps.length) { alert('Please load or record your flow first.'); return; }
+      if (!rawCsvData.length) { alert('Please upload your CSV file.'); return; }
+
+      try {
+        const res = await fetch('/api/flow/start-replay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target_url: url,
+            steps: recordedSteps,
+            rows: rawCsvData,
+            delay: delay
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'replay_started') {
+          setReplayUIState(true);
+          startPolling();
+          logMessage(`[Batch] Started automated replay for ${rawCsvData.length} records...`, 'bold');
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (err) {
+        alert('Failed to start replay: ' + err.message);
+      }
+    }
+
+    async function stopBatchReplay() {
+      try {
+        await fetch('/api/flow/stop-replay', { method: 'POST' });
+        logMessage('[Batch] Stop requested. Aborting replay...', 'warn');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function setReplayUIState(active) {
+      isReplaying = active;
+      const btnStart = document.getElementById('btn-replay-start');
+      const btnStop = document.getElementById('btn-replay-stop');
+      const statusText = document.getElementById('replay-status');
+
+      if (active) {
+        btnStart.style.display = 'none';
+        btnStop.style.display = 'flex';
+        statusText.innerText = 'Replaying Batch Flow...';
+        statusText.style.color = '#3b82f6';
+      } else {
+        btnStart.style.display = 'flex';
+        btnStop.style.display = 'none';
+        statusText.innerText = 'Ready';
+        statusText.style.color = '#10b981';
+      }
+      checkReadyToReplay();
+    }
+
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/flow/progress');
+          const data = await res.json();
+
+          if (isRecording !== data.is_recording) {
+            setRecordingUIState(data.is_recording);
+          }
+          if (isReplaying !== data.is_replaying) {
+            setReplayUIState(data.is_replaying);
+            if (!data.is_replaying && !data.is_recording) {
+              clearInterval(pollInterval);
+            }
+          }
+
+          if (data.steps && data.steps.length > 0 && recordedSteps.length === 0) {
+            renderStepsList(data.steps);
+          }
+
+          if (data.total > 0) {
+            document.getElementById('m-total').innerText = data.total;
+            document.getElementById('m-processed').innerText = data.processed;
+            document.getElementById('m-success').innerText = data.success;
+            document.getElementById('m-failed').innerText = data.failed;
+
+            const pct = Math.round((data.processed / data.total) * 100);
+            document.getElementById('progress-bar').style.width = pct + '%';
+          }
+
+          if (data.logs && data.logs.length > 0) {
+            data.logs.forEach(item => logMessage(item.text, item.level));
+          }
+
+          if (data.results && data.results.length > 0) {
+            executionResults = data.results;
+            document.getElementById('btn-export').style.display = 'inline-block';
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }, 700);
+    }
+
+    function exportResults() {
+      if (!executionResults || !executionResults.length) return;
+      let csvContent = 'data:text/csv;charset=utf-8,Name,Email,Phone,Status,Timestamp\n';
+      executionResults.forEach(r => {
+        csvContent += `"${r.name}","${r.email}","${r.phone}","${r.status}","${r.timestamp}"\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `data_entry_results_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function logMessage(text, level = 'info') {
+      const consoleBox = document.getElementById('console');
+      const line = document.createElement('div');
+      line.className = `log-line log-${level}`;
+      line.innerText = text;
+      consoleBox.appendChild(line);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function clearConsole() {
+      document.getElementById('console').innerHTML = '';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Auto-load preset on start for convenience
+    loadInnovatePreset();
+  </script>
+</body>
+</html>
