@@ -163,6 +163,9 @@
                         <select class="agy-cand-select" style="width:100%;padding:8px 10px;border-radius:10px;border:1.5px solid #d4d4d8;font-size:12px;font-weight:600;background:white;">
                             <!-- Populated on category select / search -->
                         </select>
+                        <div class="agy-checkpoint-badge" style="font-size:11px;background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-weight:bold;margin-top:6px;display:inline-flex;align-items:center;gap:4px;border:1px solid #fde68a;">
+                            <span>🏁 Checkpoint:</span> <span class="agy-badge-text">Row #1 (New)</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -172,6 +175,25 @@
             const catSelect = card.querySelector('.agy-cat-select');
             const candSelect = card.querySelector('.agy-cand-select');
             const searchInput = card.querySelector('.agy-cand-search');
+            const badgeText = card.querySelector('.agy-badge-text');
+
+            function updateCheckpointBadge() {
+                const candName = candSelect.value;
+                const checkpoints = window.__AGY_CHECKPOINTS || {};
+                const info = checkpoints[candName];
+                if (info && (info.submitted_count > 0 || info.last_index >= 0)) {
+                    const nextRow = (info.last_index >= 0) ? (info.last_index + 2) : (info.submitted_count + 1);
+                    badgeText.innerText = `Row #${nextRow} (${info.submitted_count} votes cast)`;
+                    badgeText.parentElement.style.background = '#dcfce7';
+                    badgeText.parentElement.style.color = '#15803d';
+                    badgeText.parentElement.style.borderColor = '#bbf7d0';
+                } else {
+                    badgeText.innerText = `Row #1 (New / 0 votes)`;
+                    badgeText.parentElement.style.background = '#fef3c7';
+                    badgeText.parentElement.style.color = '#92400e';
+                    badgeText.parentElement.style.borderColor = '#fde68a';
+                }
+            }
 
             function populateCandidates(filterQuery = '') {
                 const cat = catSelect.value;
@@ -187,9 +209,11 @@
                 if (filtered.length === 0) {
                     candSelect.innerHTML = `<option value="">(No candidate match found)</option>`;
                 }
+                updateCheckpointBadge();
             }
 
             catSelect.onchange = () => populateCandidates(searchInput.value);
+            candSelect.onchange = updateCheckpointBadge;
             searchInput.oninput = () => populateCandidates(searchInput.value);
             populateCandidates();
         }
