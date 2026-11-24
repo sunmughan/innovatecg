@@ -24,6 +24,7 @@ indian_mobile_contacts_renamed.csv
 phones.csv
 cleaned_*.csv
 automation_progress.json*
+proxy.txt
 
 # OS metadata
 .DS_Store

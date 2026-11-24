@@ -216,11 +216,26 @@ async def inject_hud(page, prog=None):
     except Exception:
         pass
 
+async def dismiss_announcement_popup(page):
+    """Automatically detects and closes the 'Voting Lines Close Tonight' announcement popup if visible."""
+    try:
+        popup = page.locator('div.fixed.inset-0:has-text("IMPORTANT ANNOUNCEMENT"), div.fixed.inset-0:has-text("Voting Lines Close")').first
+        if await popup.is_visible():
+            close_btn = popup.locator('button[aria-label="Close"], button:has-text("Close"), button:has-text("Vote Now")').first
+            if await close_btn.is_visible():
+                await close_btn.click()
+                await page.wait_for_timeout(500)
+    except Exception:
+        pass
+
 async def open_candidate_modal(page, candidate_name, category_name):
     """
     Ensures the voting modal is opened specifically for the designated candidate and category.
     Guarantees no data is submitted to any wrong category or wrong candidate.
     """
+    # 0. Always dismiss any announcement popup first so it doesn't block clicks
+    await dismiss_announcement_popup(page)
+
     name_field = page.locator('input[name="name"]').first
     
     # Check if modal is already open
@@ -340,6 +355,9 @@ async def tab_worker(tab_id, page, shared_state, contacts):
         print(f"\n[Tab #{tab_id}] [Row #{row_num}/{len(contacts)}] Processing: {name} (Phone: {phone}) -> Candidate: '{candidate}' [{category}]")
         
         try:
+            # Ensure announcement popup is dismissed
+            await dismiss_announcement_popup(page)
+
             # Re-inject HUD with latest checkpoints
             await inject_hud(page, shared_state["progress"])
 
@@ -411,11 +429,20 @@ async def tab_worker(tab_id, page, shared_state, contacts):
                     outcome = "success"
                     break
 
-                # Check for portal duplicate error
+                # Check for portal error banner (div.bg-red-50, div.animate-shake)
                 try:
                     error_banner = page.locator('div.bg-red-50, div.animate-shake').first
                     if await error_banner.is_visible():
                         err_msg = (await error_banner.inner_text()).strip()
+                        
+                        # 1. Check IP restriction first
+                        ip_words = ["ip restricted", "ip address", "network limit", "rate limit", "too many", "maximum votes from this ip", "ip limit"]
+                        if any(w in err_msg.lower() for w in ip_words):
+                            outcome = "ip_restricted"
+                            err_detail = err_msg
+                            break
+
+                        # 2. Check duplicate phone / voter
                         duplicate_words = ["already", "duplicate", "voted", "limit", "one vote", "1 vote", "registered", "policy", "exists"]
                         if any(w in err_msg.lower() for w in duplicate_words):
                             outcome = "duplicate"
@@ -435,6 +462,28 @@ async def tab_worker(tab_id, page, shared_state, contacts):
                 save_progress(shared_state["progress"])
                 print(f"  🎉 [Tab #{tab_id}] SUCCESS: Vote cast for '{candidate}' by {name}!")
                 print(f"     [Checkpoint: Row #{c_prog['last_index'] + 1} | Total Votes: {len(c_prog['submitted_phones'])}]")
+
+            elif outcome == "ip_restricted":
+                print(f"\n🚨 [Tab #{tab_id}] IP RESTRICTION ALERT FROM PORTAL: {err_detail}")
+                print(f"   👉 Cause: The portal has rate-limited or restricted your current IP network.")
+                print(f"   💡 QUICK FIX (Takes 5 seconds):")
+                print(f"      1. Disconnect and reconnect your Mobile Hotspot (or turn Airplane Mode ON for 5s then OFF on your phone).")
+                print(f"         In India (Jio/Airtel/Vi), this gives you a clean dynamic Indian IP instantly!")
+                print(f"      2. Or enter a proxy in 'proxy.txt' (format: http://host:port).")
+                print(f"   ⏸️ Automation paused. Row #{row_num} preserved. Reconnect IP and close menu to resume!\n")
+                
+                # Reset cursor for this candidate so this contact is retried after IP change
+                shared_state["candidate_cursors"][candidate] = row_idx
+                
+                try:
+                    close_btn = page.locator('div.fixed.inset-0 button').first
+                    if await close_btn.is_visible():
+                        await close_btn.click()
+                        await page.wait_for_timeout(600)
+                except Exception:
+                    pass
+                
+                shared_state["paused"] = True
 
             elif outcome == "duplicate":
                 c_prog["duplicate_phones"].add(phone)
@@ -585,18 +634,45 @@ async def main():
         "progress": progress
     }
 
+    # Check for optional proxy configuration
+    proxy_config = None
+    proxy_server = None
+    for arg in sys.argv[1:]:
+        if arg.startswith("--proxy="):
+            proxy_server = arg.split("=", 1)[1].strip()
+
+    if not proxy_server and os.path.exists("proxy.txt"):
+        try:
+            with open("proxy.txt", "r", encoding="utf-8") as f:
+                lines = [l.strip() for l in f.readlines() if l.strip() and not l.strip().startswith("#")]
+                if lines:
+                    proxy_server = lines[0]
+        except Exception:
+            pass
+
+    if proxy_server:
+        print(f"\n🌐 [PROXY ENABLED]: Routing browser traffic through proxy: {proxy_server}")
+        proxy_config = {"server": proxy_server}
+    else:
+        print("\n🌐 [NETWORK]: Direct connection. (Tip: Reconnect mobile hotspot anytime to get fresh IP!)")
+
     TARGET_URL = "https://innovatecg.in/voting"
     print(f"\n[*] Target Website: {TARGET_URL}")
     print("[*] Launching Chromium browser with Control Center HUD...")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, args=["--start-maximized"])
+        browser = await p.chromium.launch(
+            headless=False,
+            args=["--start-maximized"],
+            proxy=proxy_config if proxy_config else None
+        )
         context = await browser.new_context(no_viewport=True)
 
         # Tab #1 initialization
         page1 = await context.new_page()
         await page1.goto(TARGET_URL, wait_until="domcontentloaded", timeout=30000)
         await page1.wait_for_timeout(1000)
+        await dismiss_announcement_popup(page1)
         await inject_hud(page1, progress)
 
         pages_dict = {1: page1}

@@ -1,4 +1,21 @@
 (() => {
+    // 0. Auto-dismiss the "Voting Lines Close Tonight" announcement popup immediately
+    function autoDismissAnnouncement() {
+        try {
+            const dialogs = document.querySelectorAll('div.fixed.inset-0');
+            dialogs.forEach(d => {
+                const txt = (d.innerText || '');
+                if (txt.includes('IMPORTANT ANNOUNCEMENT') || txt.includes('Voting Lines Close')) {
+                    const closeBtn = d.querySelector('button[aria-label="Close"], button');
+                    if (closeBtn) closeBtn.click();
+                    d.style.display = 'none';
+                }
+            });
+        } catch (e) {}
+    }
+    autoDismissAnnouncement();
+    setInterval(autoDismissAnnouncement, 800);
+
     if (document.getElementById('agy-floating-toolbar')) return;
 
     window.__AGY_PAUSED = false;
