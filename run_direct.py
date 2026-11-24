@@ -141,6 +141,7 @@ def load_progress(csv_name):
                         "last_index": data.get("last_index", -1),
                         "submitted_phones": set(data.get("submitted_phones", [])),
                         "duplicate_phones": set(data.get("duplicate_phones", [])),
+                        "submitted_emails": set(data.get("submitted_emails", [])),
                         "submitted_count": len(data.get("submitted_phones", []))
                     }
                 else:
@@ -150,6 +151,7 @@ def load_progress(csv_name):
                             "last_index": c_data.get("last_index", -1),
                             "submitted_phones": set(c_data.get("submitted_phones", [])),
                             "duplicate_phones": set(c_data.get("duplicate_phones", [])),
+                            "submitted_emails": set(c_data.get("submitted_emails", [])),
                             "submitted_count": len(c_data.get("submitted_phones", []))
                         }
         except Exception as e:
@@ -168,6 +170,7 @@ def save_progress(prog):
                 "duplicate_count": len(c_data.get("duplicate_phones", set())),
                 "submitted_phones": sorted(list(c_data.get("submitted_phones", set()))),
                 "duplicate_phones": sorted(list(c_data.get("duplicate_phones", set()))),
+                "submitted_emails": sorted(list(c_data.get("submitted_emails", set()))),
                 "last_updated": time.strftime("%Y-%m-%d %H:%M:%S")
             }
         data = {
@@ -192,6 +195,7 @@ def get_or_create_candidate_progress(prog, candidate, category):
             "last_index": -1,
             "submitted_phones": set(),
             "duplicate_phones": set(),
+            "submitted_emails": set(),
             "submitted_count": 0
         }
     return prog["candidates"][candidate]
@@ -312,8 +316,11 @@ async def get_next_contact_for_candidate(candidate, category, shared_state, cont
         while cursor < len(contacts):
             c = contacts[cursor]
             phone = c["phone"]
-            # Check if this phone has already voted or failed for this candidate
-            if phone not in c_prog["submitted_phones"] and phone not in c_prog["duplicate_phones"]:
+            email = c.get("email", "").strip().lower()
+            # Check if this phone or email has already voted or failed for this candidate
+            if (phone not in c_prog["submitted_phones"] and 
+                phone not in c_prog["duplicate_phones"] and 
+                email not in c_prog.get("submitted_emails", set())):
                 shared_state["candidate_cursors"][candidate] = cursor + 1
                 return cursor, c
             cursor += 1
@@ -490,6 +497,8 @@ async def tab_worker(tab_id, page, shared_state, contacts):
 
             if outcome == "success":
                 c_prog["submitted_phones"].add(phone)
+                if contact.get("email"):
+                    c_prog.setdefault("submitted_emails", set()).add(contact["email"].strip().lower())
                 c_prog["last_index"] = max(c_prog["last_index"], row_idx)
                 save_progress(shared_state["progress"])
                 print(f"  🎉 [Tab #{tab_id}] SUCCESS: Vote cast for '{candidate}' by {name}!")
@@ -519,6 +528,8 @@ async def tab_worker(tab_id, page, shared_state, contacts):
 
             elif outcome == "duplicate":
                 c_prog["duplicate_phones"].add(phone)
+                if contact.get("email"):
+                    c_prog.setdefault("submitted_emails", set()).add(contact["email"].strip().lower())
                 c_prog["last_index"] = max(c_prog["last_index"], row_idx)
                 save_progress(shared_state["progress"])
                 print(f"  ⚠️ [Tab #{tab_id}] DUPLICATE FOR '{candidate}': {err_detail}")
