@@ -419,6 +419,15 @@ async def tab_worker(tab_id, page, shared_state, contacts):
                 # Check portal success (Done button or green success box)
                 done_btn = page.locator('div.bg-emerald-50 button:has-text("Done")').first
                 if await done_btn.is_visible():
+                    try:
+                        success_box = page.locator('div.bg-emerald-50').first
+                        success_txt = (await success_box.inner_text()).replace('\n', ' ').strip()
+                        print(f"\n  ✅ [Tab #{tab_id}] Portal Success Message: \"{success_txt}\"")
+                    except Exception:
+                        pass
+                    # Wait 2 seconds as requested so the user/admin can see the confirmation
+                    print(f"  ⏳ Waiting 2 seconds after submission to verify portal state...")
+                    await asyncio.sleep(2.0)
                     outcome = "success"
                     await done_btn.click()
                     await page.wait_for_timeout(600)
@@ -427,27 +436,50 @@ async def tab_worker(tab_id, page, shared_state, contacts):
                 # Check if modal closed upon submit
                 if not (await name_field.is_visible()):
                     outcome = "success"
+                    print(f"  ⏳ Vote modal closed. Waiting 2 seconds to ensure state sync...")
+                    await asyncio.sleep(2.0)
                     break
 
-                # Check for portal error banner (div.bg-red-50, div.animate-shake)
+                # Check for portal error banner (div.bg-red-50, div.animate-shake, div.text-red-700)
                 try:
                     error_banner = page.locator('div.bg-red-50, div.animate-shake').first
                     if await error_banner.is_visible():
                         err_msg = (await error_banner.inner_text()).strip()
                         
+                        # Print the exact portal message live to terminal
+                        print(f"\n  📢 [Tab #{tab_id}] FORM RESPONSE FROM PORTAL: \"{err_msg}\"")
+                        print(f"  ⏳ Pausing 2 seconds to inspect portal error message...")
+                        await asyncio.sleep(2.0)
+
                         # 1. Check IP restriction first
-                        ip_words = ["ip restricted", "ip address", "network limit", "rate limit", "too many", "maximum votes from this ip", "ip limit"]
+                        ip_words = ["ip restricted", "ip address", "network limit", "rate limit", "too many", "maximum votes from this ip", "ip limit", "ip block"]
                         if any(w in err_msg.lower() for w in ip_words):
                             outcome = "ip_restricted"
                             err_detail = err_msg
                             break
 
-                        # 2. Check duplicate phone / voter
+                        # 2. Check for captcha code error (user just needs to re-enter code)
+                        if any(w in err_msg.lower() for w in ["captcha", "verification code", "security code", "incorrect code", "enter code"]):
+                            print(f"  ⚠️ [CAPTCHA MISMATCH]: {err_msg} -> Highlighting captcha box for re-entry...")
+                            if await code_field.is_visible():
+                                try:
+                                    await page.evaluate("(el) => { el.style.outline = '4px solid #ef4444'; el.value = ''; el.focus(); }", await code_field.element_handle())
+                                except Exception:
+                                    await code_field.focus()
+                            await asyncio.sleep(1.0)
+                            continue
+
+                        # 3. Check duplicate phone / voter
                         duplicate_words = ["already", "duplicate", "voted", "limit", "one vote", "1 vote", "registered", "policy", "exists"]
                         if any(w in err_msg.lower() for w in duplicate_words):
                             outcome = "duplicate"
                             err_detail = err_msg
                             break
+
+                        # 4. Any other server error (e.g. invalid email / dummy phone)
+                        outcome = "other_error"
+                        err_detail = err_msg
+                        break
                 except Exception:
                     pass
 
@@ -491,6 +523,19 @@ async def tab_worker(tab_id, page, shared_state, contacts):
                 save_progress(shared_state["progress"])
                 print(f"  ⚠️ [Tab #{tab_id}] DUPLICATE FOR '{candidate}': {err_detail}")
                 print(f"  ⏭️ Mobile '{phone}' already voted in {category}. Rolling next...")
+                try:
+                    close_btn = page.locator('div.fixed.inset-0 button').first
+                    if await close_btn.is_visible():
+                        await close_btn.click()
+                        await page.wait_for_timeout(600)
+                except Exception:
+                    pass
+
+            elif outcome == "other_error":
+                print(f"  ⚠️ [Tab #{tab_id}] PORTAL REJECTED ROW: {err_detail}")
+                print(f"  ⏭️ Moving past Row #{row_num} and rolling to next contact...")
+                c_prog["last_index"] = max(c_prog["last_index"], row_idx)
+                save_progress(shared_state["progress"])
                 try:
                     close_btn = page.locator('div.fixed.inset-0 button').first
                     if await close_btn.is_visible():
